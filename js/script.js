@@ -118,6 +118,8 @@ function displayResults(age, height, gender, measured, predicted, source) {
     document.getElementById('form-ferf').style.display = 'none';
     document.getElementById('result-container').style.display = 'block';
     document.querySelector('.container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    saveResultToGoogleSheets();
 }
 
 function resetForm() {
