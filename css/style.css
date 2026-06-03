@@ -189,7 +189,7 @@ body {
 .info-row {
     display: flex;
     justify-content: flex-start;
-    font-size: 15px;
+    font-size: 10px;
 }
 
 .info-label {
