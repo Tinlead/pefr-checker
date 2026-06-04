@@ -19,14 +19,13 @@ function calculateFERF() {
         return;
     }
 
-    let standardPefr = getPdfStandardPefr(age, height, gender);
-    let source = 'pdf';
+    const standardPefr = getPdfStandardPefr(age, height, gender);
     if (standardPefr === null) {
-        // fallback: use formula-predicted PEFR and note the source
-        standardPefr = calculatePredictedPEFR(age, height, gender);
-        source = 'formula';
+        alert('ไม่พบค่ามาตรฐานในตาราง PEFR สำหรับอายุ/ส่วนสูงนี้');
+        return;
     }
-    displayResults(age, height, gender, measuredPefr, standardPefr, source);
+
+    displayResults(age, height, gender, measuredPefr, standardPefr);
 }
 
 function calculatePredictedPEFR(age, height, gender) {
@@ -50,11 +49,13 @@ function calculatePredictedPEFR(age, height, gender) {
 }
 
 function getPdfStandardPefr(age, height, gender) {
-    if (!window.PEFR_TABLE) {
+    // เปลี่ยนมาตรวจสอบตัวแปรโดยตรง และเผื่อกรณีที่ยังโหลดไฟล์ data ไม่เสร็จ
+    if (typeof PEFR_TABLE === 'undefined') {
         return null;
     }
 
-    const table = PEFR_TABLE[gender];
+    // ป้องกันปัญหาเรื่องตัวพิมพ์เล็ก/ใหญ่ และช่องว่างที่อาจติดมาจาก HTML
+    const table = PEFR_TABLE[gender.toLowerCase().trim()];
     if (!table) {
         return null;
     }
@@ -74,32 +75,19 @@ function getPdfStandardPefr(age, height, gender) {
     return row[heightIndex] || null;
 }
 
-function displayResults(age, height, gender, measured, predicted, source) {
+function displayResults(age, height, gender, measured, standardPefr) {
     document.getElementById('result-age').textContent = age + ' ปี';
     document.getElementById('result-height').textContent = height + ' ซม.';
     document.getElementById('result-gender').textContent = gender === 'male' ? 'ชาย' : 'หญิง';
     document.getElementById('result-fev').textContent = measured + ' L/min';
-    
-    const percentage = (measured / predicted) * 100;
-    const percentageText = percentage.toFixed(2) + ' %';
-    document.getElementById('result-ferf').textContent = percentageText;
 
-    let firstLine = '';
-    let messageText = '';
+    const percentage = (measured * 100) / standardPefr;
+    document.getElementById('result-ferf').textContent = percentage.toFixed(2) + ' %';
+
+    const relation = measured >= standardPefr ? 'มากกว่าหรือเท่ากับมาตรฐาน' : 'น้อยกว่ามาตรฐาน';
+    const messageText = 'วิธีคำนวณ: (' + measured + ' × 100) ÷ ' + standardPefr + ' = ' + percentage.toFixed(2) + '% ของค่ามาตรฐาน (' + relation + ')';
+
     let statusText = '';
-
-    if (source === 'pdf') {
-        const relation = measured >= predicted ? 'มากกว่ามาตรฐาน' : 'น้อยกว่ามาตรฐาน';
-        firstLine = 'ผลลัพธ์ : ' + percentage.toFixed(2) + '% ของมาตรฐาน (' + relation + ')';
-        messageText = firstLine;
-    } else {
-        const relation = measured >= predicted ? 'มากกว่ามาตรฐาน' : 'น้อยกว่ามาตรฐาน';
-        const diff = measured - predicted;
-        const diffAbs = Math.abs(diff);
-        const diffPercent = (diff / predicted) * 100;
-        firstLine = 'ผลลัพธ์ : ' + percentage.toFixed(2) + '% ของมาตรฐาน (' + relation + ')';
-        messageText = firstLine;
-    }
 
     if (percentage >= 80) {
         statusText = 'ค่าปกติ - สมรรถภาพปอดอยู่ในเกณฑ์ปกติ';
@@ -119,7 +107,11 @@ function displayResults(age, height, gender, measured, predicted, source) {
     document.getElementById('result-container').style.display = 'block';
     document.querySelector('.container').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    saveResultToGoogleSheets();
+    try {
+        saveResultToGoogleSheets();
+    } catch (e) {
+        console.error('ไม่สามารถบันทึกไปยัง Google Sheets:', e);
+    }
 }
 
 function resetForm() {
